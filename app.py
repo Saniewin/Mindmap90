@@ -1,6 +1,6 @@
 import streamlit as st
 
-# Set Streamlit Page Configuration - optimized for Samsung Galaxy S26 Ultra (high-res vertical viewport)
+# STREAMLIT PAGE CONFIGURATION & DESKTOP WIDE-LAYOUT
 st.set_page_config(
     page_title="Psychology Mindmap Guide",
     page_icon="🧠",
