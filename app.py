@@ -1,351 +1,672 @@
-#!/usr/bin/env python3
-"""
-MIND'S EDGE: SCREENLESS AUDIO RPG SDE ENGINE
-Version: 2.0.0 (Unified Stochastic & Semantic Density Edition)
---------------------------------------------------------------------------------
-This master state-engine implements:
-1. Stochastic Differential Equations (SDE) for signal decoherence:
-   dX_t = theta * (mu - X_t) * dt + sigma * dW_t
-2. Semantic Density Effect (SDE) and Semantic Isolation:
-   Isolates raw float-level telemetry from the semantic rendering engine.
-   As decoherence (X_t) spikes, the narrative "semantic density" increases,
-   triggering linguistic fragmentation, nested sensory audio logs, and 
-   increasingly complex haptic/sensor constraints.
---------------------------------------------------------------------------------
-"""
+import React, { useState, useEffect } from 'react';
+import { ChevronRight, ChevronLeft, Info, Heart, Activity, Brain, BookOpen, X, Moon, Utensils, Star, Shield, Users, Lightbulb, MonitorPlay } from 'lucide-react';
 
-import sys
-import random
-import math
-
-class ScreenlessSDEEngine:
-    def __init__(self):
-        # 1. Core Mathematical Telemetry (Isolated from Semantics)
-        self.stamina = 12.0
-        self.cohesion = 10.0
-        self.soot = 1.0  # 0 to 8 carrying slots occupied by lead oxide
-        self.pacemaker_charges = 3
-        self.scars = []
-        
-        # SDE Parameters
-        self.x_t = 0.15  # Starting decoherence level (0.0 to 1.0)
-        self.theta = 1.5  # Reversion speed (Arthur's antenna alignment strength)
-        self.mu_base = 0.30  # Baseline noise equilibrium
-        self.sigma_base = 0.25  # Volatility / turbulence base
-        
-        # Grid Tracking
-        self.current_col = 10  # Col 'J'
-        self.current_row = 1   # Row '1'
-        self.turns_completed = 0
-        self.endgame_row = 20  # Northern County Line F20 (Col 6, Row 20)
-        self.is_terminal = False
-        self.victory = False
-        
-        # Hardware Sensor Emulation
-        self.mic_volume_db = 15.0
-        self.ambient_light_lux = 1.5
-        self.s_pen_velocity = 20.0  # m/s
-        self.pencil_grade = "2B"  # Soft graphite grants Chroma Shielding
-
-    def step_sde(self, steps, card_suit):
-        """
-        Solves the Ornstein-Uhlenbeck SDE numerically for one turn step.
-        dX_t = theta * (mu - X_t) * dt + sigma * dW_t
-        """
-        # Delta Time is proportional to movement step distance
-        dt = max(0.05, steps / 20.0)
-        
-        # Define stochastically shifting SDE coefficients based on Suit Modulation
-        if card_suit == "Clubs":    # Resonant Feed
-            mu = 0.25
-            theta = 1.6
-            sigma = self.sigma_base
-        elif card_suit == "Spades":  # Static Flare (Unshielded)
-            mu = 0.75
-            theta = 1.0
-            sigma = self.sigma_base + 0.15
-        elif card_suit == "Hearts":  # Warmth Signal (Stable Loop)
-            mu = 0.10
-            theta = 2.0
-            sigma = self.sigma_base - 0.10
-        elif card_suit == "Diamonds": # Closed Circuit (Highly Volatile)
-            mu = 0.45
-            theta = 0.8
-            sigma = self.sigma_base + 0.25
-        else:
-            mu = self.mu_base
-            theta = self.theta
-            sigma = self.sigma_base
-
-        # Apply Pencil Graphite Carbon Shielding
-        if self.pencil_grade in ["2B", "4B", "6B"]:
-            sigma = max(0.05, sigma - 0.08)  # Thick carbon shields the line
-
-        # Standard Brownian Motion Increment (Wiener Process)
-        # Random normal sample using Box-Muller transform
-        u1 = random.random()
-        u2 = random.random()
-        z = math.sqrt(-2.0 * math.log(max(1e-9, u1))) * math.cos(2.0 * math.pi * u2)
-        dw = z * math.sqrt(dt)
-
-        # Compute dX_t change
-        dx = theta * (mu - self.x_t) * dt + sigma * dw
-        
-        # Update and clamp Decoherence
-        self.x_t = max(0.0, min(1.0, self.x_t + dx))
-        return self.x_t
-
-    def calculate_scanline_steps(self, tremor, card_value):
-        """Calculates Scanline Step count factoring in soot soot-friction."""
-        return max(1, tremor + card_value + int(self.soot))
-
-    def evaluate_semantic_density_effect(self):
-        """
-        IMPLEMENTS THE SEMANTIC DENSITY EFFECT (SDE) & SEMANTIC ISOLATION
-        Translates raw float-level decoherence (self.x_t) into isolated linguistic 
-        constructs that spike in textual and sensory density as sync degrades.
-        """
-        x = self.x_t
-        
-        # Category A: High-Fidelity/Clear Signal (0.0 <= X_t <= 0.25)
-        if x <= 0.25:
-            sensory_audio = "🔊 [AMBIENT] Liminal cornfield wind. The 15.734 kHz flyback whine softens to a clean, rhythmic tick."
-            sensory_haptic = "💓 [HAPTIC] Stable, reassuring slow pulse [45 BPM, 10% Intensity]."
-            narrative = (
-                "The air is cold and smells faintly of winter rye. Your Zenith repair monitor shines a "
-                "steady silver grid over the dirt walls of your silo. The pencil lines are sharp and unblurred."
-            )
-            mechanics = "RECOVERY ACTIVE: Locate a Sears parts locker to vacuum 1 unit of Soot."
-            density_ratio = 1.0  # Baseline semantic density (clinical, sparse)
-            
-        # Category B: Tracking Drift (0.25 < X_t <= 0.55)
-        elif x <= 0.55:
-            sensory_audio = "🔊 [AMBIENT] Wind rising. | [SPATIAL - FRONT_LEFT] Low, periodic crackle of decaying tape."
-            sensory_haptic = "💓 [HAPTIC] Accelerated heartbeat rhythm [65 BPM, 25% Intensity]."
-            narrative = (
-                "A thin, grease-scented layer of black polyurethane binder condenses on your headphones. "
-                "The tracking lines hum in your throat. Your shadow remains aligned, but your boots feel heavy."
-            )
-            mechanics = "SIGNAL DISTORTION: S-Pen strike checks are normal. Watch your step vectors."
-            density_ratio = 1.5  # Moderate density (sensory-layering starts)
-            
-        # Category C: High Chroma Distortion (0.55 < X_t <= 0.80)
-        elif x <= 0.80:
-            sensory_audio = (
-                "🔊 [AMBIENT] Wind screams. | [SPATIAL - REAR_RIGHT] Servos of a Hollow Subaltern "
-                "pulsing: guttural, wet metallic gurgling and motor whine (Proximity: 30.0%)."
-            )
-            sensory_haptic = "💓 [HAPTIC] Fast, fluttering panic pulse [95 BPM, 60% Intensity]. Phone vibrates with minor tremors."
-            narrative = (
-                "CHROMA BLEED. Horizontal tracking bars slice across the dirt walls. Your physical shadow "
-                "detaches from your collarbone, lagging exactly three frames behind your body as a solid, "
-                "impassable barrier of black static. A cold, wet rot seeps from the floorboards."
-            )
-            mechanics = "COMBAT PROTOCOL ENGAGED: S-Pen Swipe velocity threshold is standard (15.0 m/s). Fail = -2 Cohesion."
-            density_ratio = 2.5  # Heavy density (linguistic fragmentation, sensory clutter)
-            
-        # Category D: Deflection Tear / Systemic Meltdown (0.80 < X_t <= 1.00)
-        else:
-            sensory_audio = (
-                "🔊 [SYSTEM ERROR] High-frequency flyback scream (15.734 kHz) spikes to 95 dB. | "
-                "[SPATIAL - EVERYWHERE] Blinding, crackling composite static sweeps your headset."
-            )
-            sensory_haptic = "⚠️ [HAPTIC] Continuous high-voltage electrical flutter [145 BPM, 90% Intensity]. Somatic lockout hazard."
-            narrative = (
-                "DEFLECTION COLLAPSE. THE GREEN PHOSPHOR LAYER OF THE ATMOSPHERE TEARS OPEN. "
-                "consensus reality dissolves into a flat, green vector line. Arthur's transmitter discharges "
-                "50,000 volts of raw back-emf current directly into your chest wires. Your skin smells of melting "
-                "plastic and ozone. The static-choked dead are crawling through the monitor glass."
-            )
-            mechanics = "CRITICAL FAIL: Pacemaker fuses blowing! Suffer 3 Stamina damage and mark a permanent SOLDER BURN."
-            density_ratio = 4.0  # Extreme density (chaotic, capital letters, sensory overload)
-            
-        return {
-            "x_t": x,
-            "sensory_audio": sensory_audio,
-            "sensory_haptic": sensory_haptic,
-            "narrative": narrative,
-            "mechanics": mechanics,
-            "density_ratio": density_ratio
-        }
-
-    def process_turn(self, card_suit, card_value, d6_tremor):
-        """Processes one complete simulation turn."""
-        self.turns_completed += 1
-        
-        # 1. Environmental Sensor Checks (Emulated physical inputs)
-        if self.turns_completed == 2:
-            self.mic_volume_db = 65.0  # Emulate real-world stealth fail (loud decibel spike)
-            self.ambient_light_lux = 1.2
-        else:
-            self.mic_volume_db = random.uniform(10.0, 20.0)
-            self.ambient_light_lux = random.uniform(0.0, 2.5)
-
-        # 2. S-Pen Swing Check (Combat simulation if decoherence is high)
-        if self.x_t > 0.55:
-            # S-Pen swipe check
-            threshold = 30.0 if "SHATTERED" in self.scars else 15.0
-            self.s_pen_velocity = random.uniform(8.0, 25.0)  # m/s
-            swipe_success = self.s_pen_velocity >= threshold
-        else:
-            swipe_success = True
-
-        # 3. Calculate steps and run SDE
-        steps = self.calculate_scanline_steps(d6_tremor, card_value)
-        
-        # Spades penalty
-        if card_suit == "Spades":
-            self.soot = min(8.0, self.soot + 1.0)
-            self.cohesion = max(0.0, self.cohesion - 1.0)
-            
-        # Hearts recovery
-        if card_suit == "Hearts":
-            self.stamina = min(12.0, self.stamina + 1.0)
-            self.cohesion = min(10.0, self.cohesion + 1.0)
-
-        # Step SDE Solver
-        self.step_sde(steps, card_suit)
-
-        # Move coordinates Northward toward the target border
-        self.current_row = min(20, self.current_row + int(steps // 2))
-        self.current_col = min(20, max(1, self.current_col + int(steps % 3) - 1))
-        current_coord = f"{chr(64 + self.current_col)}{self.current_row}"
-
-        # 4. Handle SDE Hazards & Resolving Overwrites
-        collision_trigger = False
-        mishap_type = None
-        
-        # Mic decibel spike alerts anomalies
-        if self.mic_volume_db > 40.0:
-            collision_trigger = True
-            mishap_type = "MIC_STEALTH_FAILURE"
-            
-        # SDE Decoherence above 0.75 triggers a natural tracking collision
-        if self.x_t > 0.75 and not collision_trigger:
-            collision_trigger = True
-            mishap_type = "DEFLECTION_TEAR_COLLISION"
-
-        # Overwrite Traceback Resolution (Fate Mill d20)
-        overwrite_log = ""
-        if collision_trigger:
-            fate_roll = random.randint(1, 20)
-            
-            # Apply modifiers
-            if "SHATTERED" in self.scars:
-                fate_roll -= 2  # Battered body makes rubbing out lines clumsy
-            
-            if fate_roll == 20:
-                self.soot = max(0.0, self.soot - 1.0)
-                overwrite_log = "FATE d20 [20] - PERFECT OVERWRITE. Erased path successfully. Reclaim 1 lung slot."
-            elif 13 <= fate_roll <= 19:
-                self.soot = min(8.0, self.soot + 1.0)
-                overwrite_log = "FATE d20 [13-19] - OVERWRITE COMPROMISED. Erased, but soot caked lung slots by +1."
-            elif 10 <= fate_roll <= 12:
-                if self.pacemaker_charges > 0:
-                    self.pacemaker_charges -= 1
-                    overwrite_log = f"FATE d20 [10-12] - COERCIVITY LOCK. Spent 1 Pacemaker charge (Fuses: {self.pacemaker_charges}/3)."
-                else:
-                    self.stamina = max(0.0, self.stamina - 3.0)
-                    overwrite_log = "FATE d20 [10-12] - COERCIVITY LOCK. No fuses left! Suffer hard 3 Stamina shock."
-            else:
-                self.stamina = max(0.0, self.stamina - 3.0)
-                self.pacemaker_charges = max(0, self.pacemaker_charges - 1)
-                # Welded Solder Burn
-                overwrite_log = f"FATE d20 [1-9] - CATASTROPHIC COLLAPSE. Pacemaker blown. Suffer 3 Stamina damage and +1 permanent Solder Burn."
-                
-            # Combat resolution
-            if not swipe_success:
-                self.cohesion = max(0.0, self.cohesion - 2.0)
-                overwrite_log += " | COMBAT CHECK FAILED: S-Pen Swipe velocity was too low. Took 2 Cohesion damage."
-
-        # 5. Check "Broken" Trauma Conditions
-        broken_log = ""
-        if self.stamina <= 0.0 and "SHATTERED" not in self.scars:
-            # Choose to mark "SHATTERED" Scar to survive once
-            self.scars.append("SHATTERED")
-            self.stamina = 6.0
-            broken_log = "⚠️ [TRAUMA EVENT] Stamina hit 0! You bypass terminal death by marking the permanent 'SHATTERED' SCAR (-1 Strength)."
-        elif self.stamina <= 0.0:
-            self.is_terminal = True
-            broken_log = "💀 [TERMINAL DEATH] Physical collapse. Your pacemaker has flatlined in the clay."
-            
-        if self.soot >= 8.0:
-            self.is_terminal = True
-            broken_log = "💀 [TERMINAL DEATH] Ashen suffocation. Your carrying ledger is completely choked with lead soot."
-
-        if self.cohesion <= 0.0:
-            self.is_terminal = True
-            broken_log = "💀 [TERMINAL DEATH] Psychosis. Your mind has desynchronized completely from consensus reality."
-
-        # Endgame Check
-        if self.current_row >= self.endgame_row and not self.is_terminal:
-            self.is_terminal = True
-            self.victory = True
-
-        # Render Semantic Projection
-        projection = self.evaluate_semantic_density_effect()
-        
-        # Display formatted output
-        print(f"================================================================================")
-        print(f" [TURN {self.turns_completed:02d}] POSITION: {current_coord} | STAMINA: {self.stamina}/12 | COHESION: {self.cohesion}/10")
-        print(f"--------------------------------------------------------------------------------")
-        print(f" 🎛️  [HARDWARE SENSORS] Mic Volume: {self.mic_volume_db:.1f} dB | Ambient Light: {self.ambient_light_lux:.1f} Lux")
-        print(f"  [SDE SOLVER] Steps formula: S = d({d6_tremor}) + c({card_value}) + Soot({int(self.soot)}) - Pencil(3) = {steps} SQUARES")
-        print(f"  [SDE SOLVER] Continuous Decoherence Level (X_t): {projection['x_t']:.4f} (Density Factor: {projection['density_ratio']:.1f}x)")
-        print(f"")
-        print(f" {projection['sensory_audio']}")
-        print(f" {projection['sensory_haptic']}")
-        print(f" ✍️  [NARRATIVE PROJECTION] {projection['narrative']}")
-        
-        if card_suit == "Spades":
-            print(f"  [♠️ CARD ATTRITION] Unshielded Spades degrade Cohesion by -1 and add +1 Soot.")
-        elif card_suit == "Hearts":
-            print(f"  [♥️ CARD FEEDBACK] Warmth Signal feedback restores +1 Stamina, +1 Cohesion.")
-            
-        if collision_trigger:
-            print(f"  [⚠️ MISHAP TRIGGERED: {mishap_type}]")
-            print(f"  [FATE RESOLUTION] {overwrite_log}")
-            
-        if broken_log:
-            print(f"  {broken_log}")
-            
-        print(f"================================================================================")
-        print()
-
-def simulate_campaign():
-    print("================================================================================")
-    print("                 S26 ULTRA COMPLIANCE: SCREENLESS AUDIO ENGINE                  ")
-    print("               STOCHASTIC & SEMANTIC DENSITY EXPEDITION RUN                     ")
-    print("================================================================================")
-    print("🔊 [Earbuds] 'Safe Zone connection broken. Entering Sector 4: Mind's Edge.'")
-    print("💓 [Haptics] Transitioning to erratic ambient heartbeat vibration...")
-    print("--------------------------------------------------------------------------------\n")
-    
-    engine = ScreenlessSDEEngine()
-    
-    # Pre-drafted cards representing Tommy's 5-Act tragic run
-    turns_deck = [
-        ("Clubs", 5, 3),    # Turn 1: Easy baseline
-        ("Spades", 10, 4),   # Turn 2: Sound spike stealth failure
-        ("Spades", 8, 2),    # Turn 3: Continuing through Spades
-        ("Spades", 12, 5),   # Turn 4: High tension tracking crash
-        ("Hearts", 6, 2),    # Turn 5: Warm signal recovery
+const monthData = [
+  {
+    month: 1,
+    title: "The Newborn Phase",
+    description: "A time of feeding, sleeping, and growth. Interactions are mostly reflexive, but your baby is already learning your voice and smell.",
+    milestones: [
+      { category: "Motor", text: "Exhibits early reflexes: Rooting (turns head to touch), Moro (startle reflex), and grasping." },
+      { category: "Sensory", text: "Focuses on objects 8-12 inches away (perfect distance to your face). Prefers sweet tastes." },
+      { category: "Social/Emotional", text: "Level 1: Shared Attention and Regulation begins. The infant seeks to establish calm alertness and basic rhythms." }
+    ],
+    parenting: {
+      feeding: "Breast or bottle feed 2–3 to 4–5 hourly on demand. Aim for ~30g weight gain per day.",
+      sleep: "Aim for 18–21 hours of sleep per day. Life is essentially feed, sleep, feed, sleep.",
+      activities: "Begin 'Serve and Return' by making eye contact and using a high-pitched, gentle voice."
+    },
+    guides: [
+      { id: 'serve-return', title: "How-To: Serve and Return", icon: <Activity size={18}/> },
+      { id: 'mother-care', title: "Learn More: Postpartum Nutrition", icon: <Heart size={18}/> }
     ]
-    
-    for suit, val, tremor in turns_deck:
-        if engine.is_terminal:
-            break
-        engine.process_turn(suit, val, tremor)
-        
-    if engine.victory:
-        print("\n🏆 [FEEDBACK LOG] TARGET COUNTY BOUNDARY REACHED.")
-        print("🔊 [Earbuds] 'Ground carrier signal locked. Snapping physical Write-Protect Tab.'")
-        print("✂️  [PHYSICAL ACTION REQUIRED] Cut off left shoulder tab of your map card.")
-        print("================================================================================")
-    elif engine.is_terminal:
-        print("\n💀 [SYSTEM COLLAPSE] LOOP ENDS IN THE SOOT-CLAY.")
-        print("🔊 [Earbuds] 'Sync lock lost... Static taking over... Goodbye...'")
-        print("================================================================================")
+  },
+  {
+    month: 2,
+    title: "The Month of Awakening",
+    description: "The baby is learning about affection and will put energy into increasing parent contact time. Smiling commences.",
+    milestones: [
+      { category: "Motor", text: "Able to raise chin from ground and turn head from side-to-side." },
+      { category: "Language", text: "Begins to produce simple 'cooing' sounds consisting mainly of vowels." },
+      { category: "Social/Emotional", text: "Develops the first social smile—a delightful and unforgettable moment!" }
+    ],
+    parenting: {
+      feeding: "Continue feeding on demand. Baby's hunger signals may become more recognizable.",
+      sleep: "18-21 hours of sleep is still normal. Start guiding the baby to sleep independently.",
+      activities: "Introduce tummy time for a few minutes a day to strengthen neck and shoulder muscles."
+    },
+    guides: [
+      { id: 'tummy-time', title: "How-To: Tummy Time Basics", icon: <Activity size={18}/> },
+      { id: 'crying-cues', title: "Learn More: Understanding Cries", icon: <Info size={18}/> }
+    ]
+  },
+  {
+    month: 3,
+    title: "Establishing Patterns",
+    description: "The baby is developing significant social skills, obvious interest in the family, and predictable routines.",
+    milestones: [
+      { category: "Motor", text: "Can play with hands and fingers, and brings objects in hand to mouth." },
+      { category: "Cognitive", text: "Starts to anticipate eating at the sight of food or a bottle." },
+      { category: "Social/Emotional", text: "Vocalizes to express pleasure. Level 2: Engagement and Relating." }
+    ],
+    parenting: {
+      feeding: "Feeding patterns become more predictable around the 24-hour clock.",
+      sleep: "Evening bedtime begins to develop predictability (6-7 PM). Aim to achieve 12 hours at night (with 1-2 feeds).",
+      activities: "Read simple, high-contrast board books. Sing nursery rhymes to encourage auditory tracking."
+    },
+    guides: [
+      { id: 'sleep-training', title: "How-To: Bedtime Routines", icon: <Moon size={18}/> },
+      { id: 'psych-dev', title: "Learn More: Early Psychological Milestones", icon: <Brain size={18}/> }
+    ]
+  },
+  {
+    month: 4,
+    title: "The Explorer Emerges",
+    description: "Physical strength increases dramatically. Your baby is becoming a much more active participant in the family.",
+    milestones: [
+      { category: "Motor", text: "Rolls from abdomen to back. Sits propped up for 10 to 15 minutes." },
+      { category: "Language", text: "Gets excited, laughs aloud. Babbling begins, repeating simple consonant and vowel sounds." },
+      { category: "Sensory", text: "Vision improves; can track moving objects across the room smoothly." }
+    ],
+    parenting: {
+      feeding: "First teeth may begin to appear soon. Prepare safe teething toys.",
+      sleep: "Sleep regressions may occur as brain development leaps forward. Stick to routines.",
+      activities: "Provide colorful play mats. Encourage reaching and grasping by dangling safe toys."
+    },
+    guides: [
+      { id: 'teething', title: "How-To: Soothe a Teething Baby", icon: <Star size={18}/> },
+      { id: 'milestone-tracking', title: "Learn More: Tracking Gross Motor", icon: <Info size={18}/> }
+    ]
+  },
+  {
+    month: 5,
+    title: "Reaching Out",
+    description: "Your baby's world is expanding as they learn to use their hands to explore and their voice to demand attention.",
+    milestones: [
+      { category: "Motor", text: "Sits on lap, reaches, and grasps objects purposefully." },
+      { category: "Cognitive", text: "Begins to understand cause and effect (e.g., shaking a rattle makes a sound)." },
+      { category: "Social/Emotional", text: "Smiles spontaneously in response to people. Shows strong attachment to primary caregivers." }
+    ],
+    parenting: {
+      feeding: "Continue milk feeds. Talk to your pediatrician about readiness for solid foods.",
+      sleep: "Naps may consolidate into 2-3 longer periods during the day.",
+      activities: "Play 'peek-a-boo' to start teaching object permanence. Talk through your daily chores."
+    },
+    guides: [
+      { id: 'peek-a-boo', title: "How-To: Games for Brain Growth", icon: <Brain size={18}/> }
+    ]
+  },
+  {
+    month: 6,
+    title: "The Half-Year Mark",
+    description: "A major transition month featuring the introduction of solid foods and independent sitting.",
+    milestones: [
+      { category: "Motor", text: "Sits alone unsupported for brief periods. Stands with help." },
+      { category: "Cognitive", text: "Smiles and vocalizes to a mirror, patting at their mirror image." },
+      { category: "Feeding", text: "Exhibits tongue lateralization (side-to-side movement) necessary for swallowing solids." }
+    ],
+    parenting: {
+      feeding: "Starts accepting baby food (purées or baby-led weaning). Watch for tongue thrust expulsion.",
+      sleep: "Many babies sleep through the night (6-8 hours without waking), though variations are normal.",
+      activities: "Introduce a sippy cup with a small amount of water. Give them safe household objects (wooden spoons) to explore."
+    },
+    guides: [
+      { id: 'solids', title: "How-To: Introducing Solid Foods", icon: <Utensils size={18}/> },
+      { id: 'psych-dev', title: "Learn More: Early Psychological Milestones", icon: <Brain size={18}/> }
+    ]
+  },
+  {
+    month: 7,
+    title: "On the Move",
+    description: "Coordination is rapidly improving. Your baby is likely figuring out how to mobilize.",
+    milestones: [
+      { category: "Motor", text: "Transfers objects from hand to hand. May begin crawling or scooting." },
+      { category: "Language", text: "Responds to their own name and recognizes the word 'no'." },
+      { category: "Social/Emotional", text: "Level 3: Two-Way Purposeful Emotional Interactions. Initiates and responds to signals." }
+    ],
+    parenting: {
+      feeding: "Offer a variety of pureed flavors and textures. Introduce common allergens carefully.",
+      sleep: "Separation anxiety may disrupt sleep. Offer quiet reassurance without turning on lights.",
+      activities: "Child-proof the house! Get down on their level to see potential hazards."
+    },
+    guides: [
+      { id: 'baby-proofing', title: "How-To: Essential Baby-Proofing", icon: <Info size={18}/> }
+    ]
+  },
+  {
+    month: 8,
+    title: "Crawling and Creeping",
+    description: "Exploration is the name of the game. They are actively investigating their environment.",
+    milestones: [
+      { category: "Motor", text: "Sits alone without support indefinitely. Begins crawling and creeping." },
+      { category: "Cognitive", text: "Object permanence is established; they will look for a hidden toy." },
+      { category: "Social/Emotional", text: "Stranger anxiety may peak as they clearly differentiate familiar faces from unfamiliar ones." }
+    ],
+    parenting: {
+      feeding: "Pincer grasp is developing; offer safe, soft finger foods (e.g., ripe banana, avocado).",
+      sleep: "Maintain consistent nap and bedtime routines to provide security during developmental leaps.",
+      activities: "Hide toys under blankets and encourage them to find them. Practice pointing at objects."
+    },
+    guides: [
+      { id: 'stranger-anxiety', title: "Learn More: Managing Stranger Anxiety", icon: <Heart size={18}/> }
+    ]
+  },
+  {
+    month: 9,
+    title: "Pulling Up",
+    description: "Legs are getting stronger, and vertical exploration begins. Gestural communication improves.",
+    milestones: [
+      { category: "Motor", text: "Pulls self to standing by holding onto furniture." },
+      { category: "Language", text: "Narrows babbling to sounds of their native language. Uses pointing to communicate." },
+      { category: "Cognitive", text: "Teleological thinking emerges: observing physical reality to infer goal-directed actions." }
+    ],
+    parenting: {
+      feeding: "Takes solids well. Continue offering family foods mashed to safe consistencies.",
+      sleep: "Ensure the crib mattress is lowered to the bottom setting now that they can stand.",
+      activities: "Place toys on low tables to encourage pulling up. Read interactive flap books."
+    },
+    guides: [
+      { id: 'gestures', title: "How-To: Encouraging Pointing and Gestures", icon: <Activity size={18}/> }
+    ]
+  },
+  {
+    month: 10,
+    title: "Standing Alone",
+    description: "Balancing acts begin. Your baby is mastering the transition between sitting, standing, and crawling.",
+    milestones: [
+      { category: "Motor", text: "Stands alone momentarily. Walks with help (cruising)." },
+      { category: "Language", text: "May say 'mamma' or 'dada' specifically to the correct parent." },
+      { category: "Social/Emotional", text: "Social referencing: Seeks out your emotional reaction to gauge their own (e.g., looking at you when they fall)." }
+    ],
+    parenting: {
+      feeding: "Encourage self-feeding with a spoon, even if it's messy. It builds fine motor skills.",
+      sleep: "May drop to a single long nap during the day, though two is still common.",
+      activities: "Provide sturdy push-toys to help them practice walking safely."
+    },
+    guides: [
+      { id: 'social-referencing', title: "Learn More: Social Referencing", icon: <Brain size={18}/> }
+    ]
+  },
+  {
+    month: 11,
+    title: "The Communicator",
+    description: "Receptive language is booming. They understand much more than they can say.",
+    milestones: [
+      { category: "Motor", text: "Stands well alone. When held standing, supports most of own weight." },
+      { category: "Language", text: "Gives a toy in response to a request or gesture. Follows simple commands." },
+      { category: "Cognitive", text: "Cooperates when being dressed (e.g., holding out an arm for a sleeve)." }
+    ],
+    parenting: {
+      feeding: "Moving towards 3 meals and 2 snacks a day. Breastmilk or formula is still a primary nutrient source.",
+      sleep: "Consistency is key as they test boundaries. Hold firm to established sleep habits.",
+      activities: "Give them simple tasks ('bring me the ball'). Listen to and validate their babbling conversations."
+    },
+    guides: [
+      { id: 'receptive-language', title: "How-To: Boost Receptive Language", icon: <BookOpen size={18}/> }
+    ]
+  },
+  {
+    month: 12,
+    title: "The First Birthday",
+    description: "Congratulations! You have a toddler. This month is marked by independent steps and first true words.",
+    milestones: [
+      { category: "Motor", text: "Walks with only one hand held, or takes first steps alone." },
+      { category: "Language", text: "Says 'mamma' and 'dada' and perhaps two other words purposefully." },
+      { category: "Social/Emotional", text: "Plays 'peek-a-boo' and other social games with anticipation and joy." }
+    ],
+    parenting: {
+      feeding: "Can transition to whole cow's milk (if advised by pediatrician). Eats mostly mashed table food.",
+      sleep: "Needs 11-14 hours of sleep in a 24-hour period.",
+      activities: "Celebrate! Continue narrative play, stacking blocks, and rolling balls back and forth."
+    },
+    guides: [
+      { id: 'first-steps', title: "Learn More: Supporting First Steps", icon: <Activity size={18}/> },
+      { id: 'psych-dev', title: "Learn More: Early Psychological Milestones", icon: <Brain size={18}/> }
+    ]
+  },
+  {
+    month: 15,
+    title: "The Walker & Explorer",
+    description: "Your toddler is likely walking independently and exploring everything. Receptive language is growing rapidly, meaning they understand much more than they can say.",
+    milestones: [
+      { category: "Motor", text: "Walks well, creeps up stairs, and can stack two blocks or scribble spontaneously." },
+      { category: "Language", text: "Uses 3-5 words correctly, points to objects to ask for them or show them to you." },
+      { category: "Cognitive", text: "Understands simple commands like 'give it to me' and follows a 1-step direction." }
+    ],
+    parenting: {
+      feeding: "Transition fully to a cup and offer a variety of safe, soft finger foods. Picky eating may begin to surface.",
+      sleep: "May transition from two naps down to one afternoon nap. Total sleep should be around 11-14 hours.",
+      activities: "Provide shape sorters and stacking rings. Read board books and let them turn the pages."
+    },
+    guides: [
+      { id: 'setting-limits', title: "How-To: Setting Positive Limits", icon: <Shield size={18}/> }
+    ]
+  },
+  {
+    month: 18,
+    title: "The Emerging Talker",
+    description: "Vocabulary is expanding, and your toddler is increasingly asserting their independence. This is the stage of 'No!' and 'Mine!', accompanied by big emotions.",
+    milestones: [
+      { category: "Motor", text: "Runs stiffly, walks up steps holding a hand, and can use a spoon with some spilling." },
+      { category: "Language", text: "Has a vocabulary of about 10-20 words. Looks at pictures in a book." },
+      { category: "Social/Emotional", text: "Rapprochement Phase: Explores independently but frequently returns to you for emotional 'refueling'." }
+    ],
+    parenting: {
+      feeding: "Appetite may decrease as growth slows. Offer healthy choices but let them decide how much to eat.",
+      sleep: "Usually firmly on a one-nap schedule. Bedtime boundaries and routines may be tested.",
+      activities: "Provide pots and pans for drum play, or dolls for early pretend play. Use simple matching games."
+    },
+    guides: [
+      { id: 'temper-tantrums', title: "Learn More: Managing Tantrums", icon: <Heart size={18}/> },
+      { id: 'rapprochement', title: "Learn More: The Rapprochement Phase", icon: <Brain size={18}/> }
+    ]
+  },
+  {
+    month: 24,
+    title: "Two Years Old!",
+    description: "Your two-year-old is a curious, active, and highly expressive person making massive cognitive leaps, particularly in symbolic play and communication.",
+    milestones: [
+      { category: "Motor", text: "Walks up and down stairs alone, runs well without falling, and kicks a ball." },
+      { category: "Language", text: "Speaks in 2-3 word sentences ('me go', 'want juice'), uses personal pronouns ('I' and 'you')." },
+      { category: "Social/Emotional", text: "Parallel play is dominant. Begins to show self-conscious emotions like shame, guilt, and pride." }
+    ],
+    parenting: {
+      feeding: "Include them in family meals. Teach them to wipe the table to build competence and confidence.",
+      sleep: "May show signs of toilet training readiness (staying dry for 2+ hours, showing interest in the bathroom).",
+      activities: "Play 'Follow the Leader', sort colors and shapes, and build block towers."
+    },
+    guides: [
+      { id: 'parallel-play', title: "Learn More: Understanding Parallel Play", icon: <Users size={18}/> },
+      { id: 'potty-training', title: "How-To: Toilet Training Readiness", icon: <Info size={18}/> }
+    ]
+  },
+  {
+    month: 30,
+    title: "The Imaginative Thinker",
+    description: "Imagination is blossoming. Your toddler is beginning to understand others' feelings and can follow routine multi-step directions.",
+    milestones: [
+      { category: "Motor", text: "Jumps with both feet, has good hand-finger coordination for scribbling or simple puzzles." },
+      { category: "Cognitive", text: "Answers simple questions, identifies themselves by name, stays with activities for 3+ minutes." },
+      { category: "Social/Emotional", text: "Beginning to understand the concept of sharing (but rarely wants to), getting louder and bossier at times." }
+    ],
+    parenting: {
+      feeding: "Foster independence by letting them use an open cup and serve themselves simple foods.",
+      sleep: "Nightmares or fears of the dark may begin due to their rapidly developing imagination.",
+      activities: "Provide dress-up clothes for dramatic play, finger paint, and sing interactive nursery rhymes."
+    },
+    guides: [
+      { id: 'giving-choices', title: "How-To: The Power of Choices", icon: <Lightbulb size={18}/> },
+      { id: 'night-fears', title: "Learn More: Handling Nighttime Fears", icon: <Moon size={18}/> }
+    ]
+  },
+  {
+    month: 36,
+    title: "The Preschooler",
+    description: "Congratulations, you have a preschooler! This year brings rich fantasy play, the ability to take turns, and a deep desire to help.",
+    milestones: [
+      { category: "Motor", text: "Alternates feet when climbing stairs, rides a tricycle, and can copy a circle." },
+      { category: "Language", text: "Speaks in full sentences, comprehends and answers questions. Knows and repeats simple rhymes." },
+      { category: "Social/Emotional", text: "Plays cooperatively with others, shows concern for a crying friend, understands simple rules." }
+    ],
+    parenting: {
+      feeding: "Feeds self with little spilling. Can help with simple, safe cooking tasks like stirring or pouring.",
+      sleep: "May resist bedtime to keep playing. Maintain a predictable, calming 30-minute wind-down routine.",
+      activities: "Team up for household chores, encourage active outdoor play, and arrange playdates."
+    },
+    guides: [
+      { id: 'power-of-play', title: "Learn More: The Power of Play", icon: <Activity size={18}/> },
+      { id: 'empathy-building', title: "How-To: Building Early Empathy", icon: <Heart size={18}/> }
+    ]
+  }
+];
 
-if __name__ == "__main__":
-    simulate_campaign()
+const guideContent = {
+  'serve-return': {
+    title: "Serve and Return: Brain Building",
+    content: "Think of your baby's brain development like a game of tennis. When they 'serve' by cooing, pointing, or looking at you, 'return' the ball by making eye contact, smiling, or speaking back. This back-and-forth interaction is the foundation of emotional and cognitive development. It tells the baby they are understood and helps wire vital neural connections."
+  },
+  'mother-care': {
+    title: "Postpartum Nutrition & Care",
+    content: "While breastfeeding, maternal physiology changes significantly. Energy needs increase by a factor of 50-100%. Aim to increase caloric intake by at least 2,000 calories per day (total) and drink 1-1.5 Liters of milk or hydrating fluids. Caring for the mother's physical and emotional well-being is a fundamental part of caring for the child."
+  },
+  'tummy-time': {
+    title: "Tummy Time Basics",
+    content: "Tummy time is crucial for developing the neck, shoulder, and core strength needed for rolling, crawling, and eventually walking. Start with 3-5 minutes, 2-3 times a day while the baby is awake and alert. Get down on their level, use mirrors or high-contrast toys to keep them engaged. Never leave a baby unattended during tummy time."
+  },
+  'crying-cues': {
+    title: "Understanding Cries & Mutual Regulation",
+    content: "In the first months, crying is the baby's primary communication. A prompt and consistent response to crying is associated with a decrease in the frequency of crying in subsequent months. Through mutual regulation, the infant uses the caregiver's physical and emotional state to organize their own nervous system. A calm caregiver helps create a calm baby."
+  },
+  'sleep-training': {
+    title: "Establishing Bedtime Routines",
+    content: "Sleep is a learned skill. By 3 months, you can establish a predictable pattern. Keep the environment dark and quiet at night. Use parent-independent cues for sleep (like a specific lullaby, a sleep sack, or a white noise machine). Recognize signs of fatigue early—if a child becomes overtired, their ability to settle and sleep is impaired."
+  },
+  'psych-dev': {
+    title: "Psychological Milestones & Emotional Capacities",
+    content: "According to the literature on CLINICAL PSYCHOLOGY, the first year is critical for psychic reorganization. \n\nAround 6 months, infants enter the 'differentiation phase' (Mahler), moving from self-orientation to social orientation. They begin to understand cause and effect and that actions have goals. \n\nBy 9 months, we see 'Level 3: Two-Way Purposeful Emotional Interactions' emerge, where the baby uses intentional gestures (pointing, facial expressions) to open and close circles of communication. \n\nSocial referencing also begins; the infant seeks out the caregiver's emotional reactions to gauge their own affective reactions to new stimuli."
+  },
+  'teething': {
+    title: "Soothing a Teething Baby",
+    content: "First teeth typically appear between 5 and 9 months. Provide safe, chilled (not frozen) teething rings. Gentle gum massages with a clean finger can help. Drooling will increase, so keep the chin dry to prevent rashes. If the baby is in significant distress, consult your pediatrician about appropriate pain relief."
+  },
+  'milestone-tracking': {
+    title: "Tracking Gross Motor Skills",
+    content: "Remember that developmental milestones have an average range and a normal range. While early training can accelerate some basic motor skills, it doesn't necessarily make the child athletically superior later. Let your child develop at their own pace, providing a safe environment for them to practice rolling, sitting, and reaching."
+  },
+  'peek-a-boo': {
+    title: "Games for Brain Growth",
+    content: "Games like Peek-a-Boo teach 'Object Permanence'—the understanding that objects (and parents) continue to exist even when they cannot be seen. This cognitive milestone helps ease separation anxiety later on. Similarly, handing objects back and forth teaches reciprocity and early social rules."
+  },
+  'solids': {
+    title: "Introducing Solid Foods",
+    content: "Around 6 months, infants develop tongue lateralization (side-to-side movement) necessary to move solid food to the back of the mouth. Start with single-ingredient purées or soft, easily mashable foods. Introduce one new food every few days to monitor for allergic reactions. Remember, breastmilk or formula is still the main source of nutrition."
+  },
+  'baby-proofing': {
+    title: "Essential Baby-Proofing",
+    content: "As mobility increases, danger increases. Cover electrical outlets, install baby gates at the top and bottom of stairs, secure heavy furniture (bookshelves, dressers) to the wall, and move toxic cleaning supplies to high, locked cabinets. Get on your hands and knees to see the world from their vantage point and identify choking hazards."
+  },
+  'stranger-anxiety': {
+    title: "Managing Stranger Anxiety",
+    content: "Stranger anxiety is a healthy, normal sign of cognitive development. It means the baby can distinguish between familiar and unfamiliar faces. To manage it, introduce new people slowly. Have the stranger approach calmly while you are holding the baby. Validate the baby's feelings and provide comfort rather than forcing interaction."
+  },
+  'gestures': {
+    title: "Encouraging Pointing and Gestures",
+    content: "Before they can speak, babies communicate via gestures. Pointing is a massive cognitive leap. Encourage it by pointing to objects yourself and naming them. When your baby points to something, acknowledge it: 'Yes, that is a dog!' This validates their communication and bridges the gap to spoken language."
+  },
+  'social-referencing': {
+    title: "Social Referencing",
+    content: "When a baby encounters something new (like a loud toy or a friendly dog), they will look to your face before reacting. If you look scared, they will cry. If you smile and speak calmly, they will approach with confidence. Your emotional response serves as their guide to navigating the world safely."
+  },
+  'receptive-language': {
+    title: "Boosting Receptive Language",
+    content: "Receptive language (what they understand) develops much faster than expressive language (what they say). Boost it by narrating your day, giving simple one-step directions ('Please give me the block'), and reading books daily. Ask them 'Where is the...' and let them point to the object or picture."
+  },
+  'first-steps': {
+    title: "Supporting First Steps",
+    content: "Walking unassisted usually occurs between 12 and 18 months. Create a safe environment with sturdy furniture they can 'cruise' along. Barefoot is best for learning to walk indoors as it helps the foot develop naturally and provides sensory feedback. Praise their efforts, and don't panic when they inevitably fall on their padded bottoms!"
+  },
+  'setting-limits': {
+    title: "Setting Positive Limits",
+    content: "As mobility and curiosity increase, so does the need for boundaries. Toddlers are naturally driven to explore, which means they will touch things they shouldn't. Use redirection rather than punishment. Ensure your home is thoroughly baby-proofed so you don't have to constantly say 'no'. When stopping an unsafe behavior, use a firm, calm voice and offer an acceptable alternative."
+  },
+  'temper-tantrums': {
+    title: "Managing Temper Tantrums",
+    content: "Tantrums are a normal part of toddlerhood, often stemming from a gap between what they want to do and what their language or motor skills allow them to do. During a tantrum, stay calm. Use a 'Time-in' approach—sit near them and offer a comforting presence. Once they are calm, help them label their feelings: 'You were so mad because we had to leave the park.'"
+  },
+  'rapprochement': {
+    title: "The Rapprochement Phase (16-24 Months)",
+    content: "Identified by developmental psychologist Margaret Mahler, 'Rapprochement' is a phase where your toddler becomes acutely aware of their physical separateness from you. This can trigger a resurgence of separation anxiety. You will see them dart away to explore, then quickly run back to you for emotional 'refueling' (a hug or a check-in) before venturing out again. Be a steady, welcoming home base."
+  },
+  'parallel-play': {
+    title: "Understanding Parallel Play",
+    content: "Around age two, children engage heavily in 'Parallel Play.' They will play next to other children, often using similar toys, but they won't directly interact or collaborate. This is a crucial stepping stone to cooperative play. Don't force them to share at this stage; they don't yet understand the concept of ownership versus temporary borrowing. Instead, provide multiples of popular toys."
+  },
+  'potty-training': {
+    title: "Toilet Training Readiness",
+    content: "Most children show signs of readiness between 24 and 30 months. Look for these cues: staying dry for at least two hours, waking up dry from a nap, showing discomfort with a soiled diaper, hiding to poop, or expressing interest in the toilet. Avoid rushing the process; waiting until the child is physically and emotionally ready makes toilet training much faster and less stressful."
+  },
+  'giving-choices': {
+    title: "The Power of Choices",
+    content: "Toddlers crave autonomy. You can reduce power struggles by offering limited, acceptable choices. Instead of asking, 'Do you want to get dressed?' (which invites a 'No!'), ask, 'Do you want to wear the red shirt or the blue shirt?' Both choices lead to the goal of getting dressed, but the child feels empowered and in control of their environment."
+  },
+  'night-fears': {
+    title: "Handling Nighttime Fears",
+    content: "As your toddler's cognitive abilities and imagination grow, so does their capacity for fear. Shadows, noises, or dreams can become 'monsters'. Never dismiss their fear as silly. Validate it: 'I see you are scared.' Use a nightlight, leave the door slightly cracked, and consider a 'monster spray' (water in a spray bottle) to give them a sense of control over their environment."
+  },
+  'power-of-play': {
+    title: "The Power of Play & Recess",
+    content: "Play is the work of childhood. Rough-and-tumble play, outdoor exploration, and imaginative scenarios are vital. Play allows children to take risks in a safe environment, learn negotiation skills, and process complex emotions. According to the AAP, active outdoor play promotes sensory integration and foundational motor skills essential for lifelong health."
+  },
+  'empathy-building': {
+    title: "Building Early Empathy",
+    content: "At three years old, children are beginning to understand that others have feelings different from their own. Foster this by narrating emotions in daily life and in books: 'Look at the puppy's face, he looks sad.' If your child hurts a playmate, instead of just forcing an apology, draw their attention to the consequence: 'Look, Tommy is crying. It hurt when you pushed him. How can we help him feel better?'"
+  }
+};
+
+export default function App() {
+  const [currentMonth, setCurrentMonth] = useState(1);
+  const [activeModal, setActiveModal] = useState(null);
+  
+  const availableMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 18, 24, 30, 36];
+
+  // Auto-scroll to top when month changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentMonth]);
+
+  const activeData = monthData.find(m => m.month === currentMonth);
+
+  const openModal = (id) => setActiveModal(id);
+  const closeModal = () => setActiveModal(null);
+
+  const nextMonth = () => {
+    const currentIndex = availableMonths.indexOf(currentMonth);
+    if (currentIndex < availableMonths.length - 1) {
+      setCurrentMonth(availableMonths[currentIndex + 1]);
+    }
+  };
+
+  const prevMonth = () => {
+    const currentIndex = availableMonths.indexOf(currentMonth);
+    if (currentIndex > 0) {
+      setCurrentMonth(availableMonths[currentIndex - 1]);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
+      
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-teal-100 p-2 rounded-full text-teal-600">
+              <Star size={24} fill="currentColor" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800 leading-tight">Baby & Toddler Steps Guide</h1>
+              <p className="text-xs text-slate-500 font-medium">Years 1-3 Progress & Parenting</p>
+            </div>
+          </div>
+          
+          {/* Month Navigation */}
+          <div className="flex items-center gap-2 bg-slate-100 rounded-full p-1 border border-slate-200">
+            <button 
+              onClick={prevMonth}
+              disabled={currentMonth === 1}
+              className={`p-2 rounded-full transition-colors ${currentMonth === 1 ? 'text-slate-300' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <div className="w-40 text-center font-semibold text-teal-700">
+              Month {currentMonth} {currentMonth >= 24 ? `(${currentMonth / 12} Yrs)` : currentMonth > 12 ? '(Toddler)' : ''}
+            </div>
+            <button 
+              onClick={nextMonth}
+              disabled={currentMonth === 36}
+              className={`p-2 rounded-full transition-colors ${currentMonth === 36 ? 'text-slate-300' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-4xl mx-auto px-4 py-8 pb-24">
+        
+        {/* Intro Section */}
+        <div className="bg-gradient-to-br from-teal-500 to-emerald-600 rounded-3xl p-8 text-white shadow-lg mb-8 transform transition-all duration-500">
+          <div className="inline-block bg-white/20 backdrop-blur-sm rounded-full px-4 py-1 text-sm font-semibold mb-4 tracking-wide border border-white/30">
+            Month {activeData.month}
+          </div>
+          <h2 className="text-4xl font-extrabold mb-3">{activeData.title}</h2>
+          <p className="text-teal-50 text-lg leading-relaxed max-w-2xl">{activeData.description}</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          
+          {}
+          <div className="md:col-span-2 space-y-6">
+            <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-2 border-b pb-2">
+              <Activity className="text-teal-500" />
+              Developmental Milestones
+            </h3>
+            
+            <div className="grid gap-4">
+              {activeData.milestones.map((milestone, idx) => (
+                <div key={idx} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-start gap-4">
+                  <div className="bg-teal-50 p-3 rounded-xl text-teal-600 shrink-0">
+                    {milestone.category === "Motor" ? <Activity size={20}/> : 
+                     milestone.category === "Language" ? <BookOpen size={20}/> : 
+                     milestone.category === "Cognitive" ? <Brain size={20}/> : 
+                     milestone.category === "Sensory" ? <Star size={20}/> :
+                     <Heart size={20}/>}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-1">{milestone.category}</h4>
+                    <p className="text-slate-600 leading-relaxed">{milestone.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick action buttons linking to Modals */}
+            {activeData.guides.length > 0 && (
+              <div className="pt-6">
+                 <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Deep Dives & Guides</h4>
+                 <div className="flex flex-wrap gap-3">
+                   {activeData.guides.map(guide => (
+                     <button 
+                       key={guide.id}
+                       onClick={() => openModal(guide.id)}
+                       className="flex items-center gap-2 bg-white border-2 border-teal-100 hover:border-teal-400 text-teal-700 px-4 py-2.5 rounded-full font-medium transition-all shadow-sm hover:shadow active:scale-95"
+                     >
+                       {guide.icon}
+                       {guide.title}
+                     </button>
+                   ))}
+                 </div>
+              </div>
+            )}
+          </div>
+
+          {}
+          <div className="space-y-6">
+            <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-2 border-b pb-2">
+              <Heart className="text-rose-400" />
+              Parenting Guide
+            </h3>
+            
+            <div className="bg-rose-50 rounded-3xl p-6 border border-rose-100 shadow-sm space-y-6">
+              
+              <div>
+                <h4 className="flex items-center gap-2 font-bold text-rose-800 mb-2">
+                  <Utensils size={18} /> Feeding & Nutrition
+                </h4>
+                <p className="text-slate-700 text-sm leading-relaxed bg-white/60 p-3 rounded-xl">
+                  {activeData.parenting.feeding}
+                </p>
+              </div>
+
+              <div>
+                <h4 className="flex items-center gap-2 font-bold text-indigo-800 mb-2">
+                  <Moon size={18} /> Sleep Routines
+                </h4>
+                <p className="text-slate-700 text-sm leading-relaxed bg-white/60 p-3 rounded-xl">
+                  {activeData.parenting.sleep}
+                </p>
+              </div>
+
+              <div>
+                <h4 className="flex items-center gap-2 font-bold text-emerald-800 mb-2">
+                  <Star size={18} /> Suggested Activities
+                </h4>
+                <p className="text-slate-700 text-sm leading-relaxed bg-white/60 p-3 rounded-xl">
+                  {activeData.parenting.activities}
+                </p>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      {}
+      <div className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-md border-t border-slate-200 py-3 flex justify-center z-10">
+        <div className="flex gap-1 sm:gap-2 overflow-x-auto px-4 max-w-full no-scrollbar pb-1">
+          {availableMonths.map(m => (
+            <button 
+              key={m}
+              onClick={() => setCurrentMonth(m)}
+              className={`w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold transition-all shrink-0 ${
+                currentMonth === m 
+                  ? 'bg-teal-500 text-white shadow-md scale-110' 
+                  : 'bg-slate-100 text-slate-500 hover:bg-teal-100 hover:text-teal-700'
+              }`}
+            >
+              {m >= 24 && m % 12 === 0 ? `${m/12}Y` : m}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Modal */}
+      {activeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col transform scale-100 transition-transform"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-teal-50/50">
+              <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                <BookOpen className="text-teal-500" size={24} />
+                {guideContent[activeModal]?.title}
+              </h2>
+              <button 
+                onClick={closeModal}
+                className="p-2 bg-white rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors shadow-sm"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto custom-scrollbar">
+              <p className="text-slate-600 leading-relaxed whitespace-pre-wrap text-[1.05rem]">
+                {guideContent[activeModal]?.content}
+              </p>
+              
+              {/* Optional dynamic prompt/disclaimer for specific modals */}
+              {activeModal === 'psych-dev' && (
+                <div className="mt-6 bg-amber-50 border border-amber-100 p-4 rounded-2xl text-sm text-amber-800 flex items-start gap-3">
+                  <Info className="shrink-0 mt-0.5" size={18}/>
+                  <p>These milestones align with developmental expectations outlined in standard frameworks. If you notice persistent delays across multiple domains, it is recommended to discuss them with your pediatrician.</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+               <button 
+                 onClick={closeModal}
+                 className="px-6 py-2 bg-slate-800 text-white font-semibold rounded-full hover:bg-slate-700 transition-colors"
+               >
+                 Close
+               </button>
+            </div>
+          </div>
+          
+          {/* Invisible backdrop click catcher */}
+          <div className="absolute inset-0 -z-10" onClick={closeModal}></div>
+        </div>
+      )}
+      
+      {/* Required CSS for hiding scrollbars but keeping functionality */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+      `}} />
+    </div>
+  );
+}
