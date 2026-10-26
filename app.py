@@ -1,345 +1,420 @@
+#!/usr/bin/env python3
 """
-FACS Micro-Flash Recall & Micro-Expression Trainer (v2.0)
-Rights & Intellectual Property Holder: Scott Niewinski
-
-Interactive Streamlit application for practicing Facial Action Coding System (FACS)
-Action Units, muscle mechanics, visual GIFs, micro-expression recognition (40ms - 200ms),
-and Multi-AU Blend Scenarios (Fear-Surprise, Sadness-Anger, Disgust-Contempt, Anger-Contempt).
+ZERO-DEPENDENCY TURNKEY WORKBENCH SERVER (HTTP + REST API + INTERACTIVE UI)
+Author: Scott Niewinski, LP & Senior Software Architect
+Description: Launches the complete State of Michigan CCBHC Clinical Psychology Foundational
+             Knowledge Matrix, Third Ear v2.0 Dyadic Enactment Index (DEI), & Local LLM Workbench
+             on http://127.0.0.1:8080 using ONLY Python's standard library.
 """
 
-import streamlit as st
-import pandas as pd
-import time
-import math
+from __future__ import annotations
+
 import json
-import random
-import os
-import hashlib
+import sys
+from dataclasses import asdict
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
-# Configuration
-st.set_page_config(page_title="FACS Micro-Flash Recall Trainer v2.0 (Scott Niewinski IP)", page_icon="🎭", layout="wide")
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR / "backend"))
+sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
-CSV_PATH = "/workspace/artifacts/facs_flashcards.csv"
-if not os.path.exists(CSV_PATH):
-    CSV_PATH = "/workspace/scratch/facs_flashcards.csv"
+import export_matrix_for_local_llm as etl  # noqa: E402
+from src.modules.clinical_mbc.service import (  # noqa: E402
+    compute_dyadic_enactment_index,
+    compute_piecewise_pseudo_phq9,
+)
+from src.modules.governance_pps.service import calculate_ccbhc_pps_pro_forma  # noqa: E402
+from src.modules.knowledge_matrix.service import KnowledgeMatrixService  # noqa: E402
+from src.modules.rag_copilot.service import HybridRAGCopilotService  # noqa: E402
 
-# Load Card Database
-@st.cache_data
-def load_cards():
-    if os.path.exists(CSV_PATH):
-        try:
-            df = pd.read_csv(CSV_PATH)
-            return df.to_dict('records')
-        except Exception:
-            pass
-    # Embedded Fallback Data
-    return [
-        {
-            "Front": "Which specific muscle controls AU 1 (Inner Brow Raiser), and what is its morphological appearance?",
-            "Back": "Muscle: Frontalis, pars medialis<br><br>Morphological Appearance: Elevates inner corners of eyebrows, creating central horizontal forehead wrinkles.<br><br>Source Grounding: FACS Learning Protocol Synthesis"
-        },
-        {
-            "Front": "Which muscle group drives AU 4 (Brow Lowerer), and what distinct line configuration does it produce?",
-            "Back": "Muscles: Corrugator supercilii, Depressor supercilii<br><br>Morphological Signature: Draws eyebrows medially/inferiorly (Omega pattern).<br><br>Source Grounding: FACS Learning Protocol Synthesis"
-        },
-        {
-            "Front": "Which specific muscle controls AU 6 (Cheek Raiser), and why is it essential for verifying genuine affect?",
-            "Back": "Muscle: Orbicularis oculi, pars orbitalis<br><br>Significance: Key marker of genuine Duchenne joy smile (AU 6 + AU 12). Driven by extrapyramidal motor system.<br><br>Source Grounding: FACS Learning Protocol Synthesis; Telling Lies.pdf"
-        },
-        {
-            "Front": "Which muscle produces AU 14 (Dimpler), and what is its unique unilateral emotional blueprint?",
-            "Back": "Muscle: Buccinator<br><br>Unilateral Blueprint: Tightens lip corners medially. Unilateral AU 14 is the universal blueprint for Contempt.<br><br>Source Grounding: FACS Learning Protocol Synthesis"
-        }
-    ]
+matrix_service = KnowledgeMatrixService()
+rag_service = HybridRAGCopilotService()
 
-cards_data = load_cards()
-
-# Single AU GIF Map
-GIF_MAP = {
-    "AU 1 (Inner Brow Raiser)": "https://imotions.com/wp-content/uploads/2022/10/AU1-FACS.gif",
-    "AU 4 (Brow Lowerer)": "https://imotions.com/wp-content/uploads/2022/10/AU4-brow-lowerer.gif",
-    "AU 6 (Cheek Raiser / Duchenne)": "https://imotions.com/wp-content/uploads/2022/10/AU6-cheek-raiser.gif",
-    "AU 9 (Nose Wrinkler)": "https://imotions.com/wp-content/uploads/2022/10/AU9-with-410.gif",
-    "AU 11 (Nasolabial Deepener)": "https://imotions.com/wp-content/uploads/2022/10/AU11-nasolabial-deepener-1.gif",
-    "AU 14 (Dimpler / Contempt)": "https://imotions.com/wp-content/uploads/2022/10/AU14-dimpler.gif",
-    "AU 20 (Lip Stretcher / Fear)": "https://imotions.com/wp-content/uploads/2022/10/AU20-lip-stretcher.gif"
-}
-
-# Multi-AU Blend Scenarios Data
-MULTI_AU_BLEND_SCENARIOS = {
-    "Fear-Surprise Blend (AU 1+2+4+5+20)": {
-        "title": "Fear vs. Surprise Differentiation Blend",
-        "au_components": "AU 1 + AU 2 + AU 4 + AU 5 + AU 20",
-        "primary_gif": "https://imotions.com/wp-content/uploads/2022/10/AU20-lip-stretcher.gif",
-        "secondary_gif": "https://imotions.com/wp-content/uploads/2022/10/AU4-brow-lowerer.gif",
-        "morphology_description": "Eyebrows raised AND drawn medially together by AU 4 (creating short central forehead furrows) paired with wide staring eyes (AU 5) and horizontal lip stretching (AU 20).",
-        "differentiation_rule": "Pure surprise features curved high brows (AU 1+2) without AU 4 medial pull, and a relaxed jaw drop (AU 26). The presence of AU 4 + AU 20 confirms Fear/Threat anticipation.",
-        "options": ["Fear-Surprise Blend (AU 1+2+4+5+20)", "Pure Surprise (AU 1+2+5+26)", "Sadness-Anger Blend (AU 1+4+7+15+23)", "Pure Disgust (AU 9+10)"]
-    },
-    "Sadness-Anger Blend (AU 1+4+7+15+23)": {
-        "title": "Grief-Frustration / Sadness-Anger Blend",
-        "au_components": "AU 1 + AU 4 + AU 7 + AU 15 + AU 23",
-        "primary_gif": "https://imotions.com/wp-content/uploads/2022/10/AU4-brow-lowerer.gif",
-        "secondary_gif": "https://imotions.com/wp-content/uploads/2022/10/AU1-FACS.gif",
-        "morphology_description": "Inner brows raised and drawn medially (AU 1+4 'grief muscle') combined with tensed lower eyelids (AU 7), depressed lip corners (AU 15), and tightly narrowed lips (AU 23).",
-        "differentiation_rule": "The inner brow elevation (AU 1+4) signals deep grief/sadness, while lower lid tightening (AU 7) and vermilion lip narrowing (AU 23) leak suppressed anger and hostility.",
-        "options": ["Sadness-Anger Blend (AU 1+4+7+15+23)", "Pure Sadness (AU 1+4+15)", "Pure Anger (AU 4+5+7+23)", "Masked Joy (AU 12)"]
-    },
-    "Disgust-Contempt Blend (AU 9 + Unilateral AU 14)": {
-        "title": "Visceral Distaste & Moral Superiority Blend",
-        "au_components": "AU 9 + Unilateral AU 14",
-        "primary_gif": "https://imotions.com/wp-content/uploads/2022/10/AU9-with-410.gif",
-        "secondary_gif": "https://imotions.com/wp-content/uploads/2022/10/AU14-dimpler.gif",
-        "morphology_description": "Transverse wrinkles across the nasal bridge (AU 9) paired with asymmetrical one-sided buccinator contraction and lip corner dimpling (unilateral AU 14).",
-        "differentiation_rule": "Nasal wrinkling (AU 9) alone indicates physical/sensory aversion. The addition of asymmetrical AU 14 shifts the expression to interpersonal disdain and condescension.",
-        "options": ["Disgust-Contempt Blend (AU 9 + Unilateral AU 14)", "Pure Disgust (AU 9)", "Pure Contempt (Unilateral AU 14)", "Squelched Anger (AU 23)"]
-    },
-    "Anger-Contempt Blend (AU 4+5+7 + Unilateral AU 14)": {
-        "title": "Hostile Glare & Condescending Dimple Blend",
-        "au_components": "AU 4 + AU 5 + AU 7 + Unilateral AU 14",
-        "primary_gif": "https://imotions.com/wp-content/uploads/2022/10/AU4-brow-lowerer.gif",
-        "secondary_gif": "https://imotions.com/wp-content/uploads/2022/10/AU14-dimpler.gif",
-        "morphology_description": "Lowered glabella brows (AU 4), elevated upper lids exposing iris (AU 5), tensed lower lids (AU 7 'glare'), combined with unilateral cheek dimpling (AU 14).",
-        "differentiation_rule": "Combines full orbital glare of active threat (AU 4+5+7) with unilateral asymmetrical lip tightness (AU 14), signaling hostile moral evaluation.",
-        "options": ["Anger-Contempt Blend (AU 4+5+7 + Unilateral AU 14)", "Pure Anger (AU 4+5+7+23)", "Pure Contempt (Unilateral AU 14)", "Fear-Surprise Blend (AU 1+2+4+5+20)"]
-    },
-    "Suppressed Anger-Masked Joy (AU 4+23 + AU 12)": {
-        "title": "Managed Social Mask Over Suppressed Hostility",
-        "au_components": "AU 4 + AU 23 + AU 12 (No AU 6)",
-        "primary_gif": "https://imotions.com/wp-content/uploads/2022/10/AU4-brow-lowerer.gif",
-        "secondary_gif": "https://imotions.com/wp-content/uploads/2022/10/AU11-nasolabial-deepener-1.gif",
-        "morphology_description": "Zygomatic major lip corner puller (AU 12) attempting a smile, but lacking orbital crow's feet (AU 6), while glabella brows remain lowered (AU 4) and red lips are tightly compressed (AU 23).",
-        "differentiation_rule": "Absence of AU 6 proves the smile is a cortical social mask (pyramidal), while AU 4 + AU 23 reveals underlying extrapyramidal anger.",
-        "options": ["Suppressed Anger-Masked Joy (AU 4+23 + AU 12)", "Duchenne Joy (AU 6+12)", "Pure Sadness (AU 1+4+15)", "Pure Disgust (AU 9)"]
+HTML_UI = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CCBHC Foundational Knowledge Matrix & Third Ear v2.0 Dyadic Index Workbench</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --panel: #111827;
+      --border: #1f2937;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --sky: #38bdf8;
+      --emerald: #34d399;
+      --purple: #c084fc;
+      --amber: #fbbf24;
+      --rose: #fb7185;
     }
-}
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px;
+      background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    header {
+      max-width: 1360px; margin: 0 auto 24px auto;
+      padding-bottom: 16px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    .subtitle { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--sky); font-weight: 700; }
+    h1 { margin: 4px 0 0 0; font-size: 22px; }
+    .grid {
+      max-width: 1360px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 18px;
+    }
+    .card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px;
+    }
+    .card h2 { margin: 0 0 6px 0; font-size: 16px; }
+    .card p { margin: 0 0 14px 0; font-size: 12px; color: var(--muted); }
+    label { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 4px; }
+    input[type="range"] { width: 100%; margin-bottom: 10px; }
+    input[type="text"], select {
+      width: 100%; padding: 9px 12px; background: #030712; color: var(--text);
+      border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+    }
+    button {
+      background: var(--sky); color: #030712; border: none; border-radius: 8px;
+      padding: 9px 16px; font-weight: 700; cursor: pointer; font-size: 13px;
+    }
+    button:hover { opacity: 0.9; }
+    .result-box {
+      background: #030712; border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.5; margin-top: 10px;
+      white-space: pre-wrap; font-family: ui-monospace, monospace;
+    }
+    .full-width { max-width: 1360px; margin: 18px auto 0 auto; }
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; background: #1e293b; color: var(--sky); margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="subtitle">State of Michigan CCBHC Demonstration • Third Ear v2.0 Dyadic Index Integrated</div>
+      <h1>Clinical Psychology Foundational Knowledge Matrix &amp; Local LLM Workbench</h1>
+    </div>
+    <div>
+      <span class="badge">SQLite WAL Connected</span>
+      <span class="badge">76 Graph Edges Active</span>
+      <span class="badge" style="color: var(--amber)">100Hz Edge NPU • 750ms DEI</span>
+    </div>
+  </header>
 
-st.title("🎭 FACS Micro-Flash Recall & Micro-Expression Trainer (v2.0)")
-st.caption("Rights & Intellectual Property Holder: Scott Niewinski — Powered by SuperMemo Spaced Repetition, Ekman 40–200ms Micro-Expression Principles, and Multi-AU Blend Scenarios.")
+  <div class="grid">
+    <!-- Panel 1: L2-DEI / L3-TEAR Psychoanalytic Third Ear v2.0 Dyadic Enactment Index -->
+    <div class="card">
+      <h2 style="color: var(--amber)">[L2-DEI / L3-TEAR] Third Ear v2.0 Dyadic Enactment Index</h2>
+      <p>100Hz Edge NPU (750ms window) fusing vocal shimmer (S_f0), silent pause (R_p), clinician PPG dHRV, &amp; INT8 defense load in zero-cloud Knox RAM.</p>
+      <label><span>Pitch Micro-Shimmer (S_f0):</span><strong id="sf0Val">0.68</strong></label>
+      <input type="range" id="sf0Input" min="0.00" max="1.00" step="0.01" value="0.68" oninput="updateDEI()" />
+      <label><span>Inter-Turn Silent Pause Ratio (R_p):</span><strong id="rpVal">0.52</strong></label>
+      <input type="range" id="rpInput" min="0.00" max="1.00" step="0.01" value="0.52" oninput="updateDEI()" />
+      <label><span>Clinician PPG Autonomic Shift (dHRV = 1 - RMSSD):</span><strong id="hrvVal">0.45</strong></label>
+      <input type="range" id="hrvInput" min="0.00" max="1.00" step="0.01" value="0.45" oninput="updateDEI()" />
+      <label><span>INT8 Transformer Defense Load (Def_load):</span><strong id="defVal">0.55</strong></label>
+      <input type="range" id="defInput" min="0.00" max="1.00" step="0.01" value="0.55" oninput="updateDEI()" />
+      <div id="deiOutput" class="result-box">Calculating DEI...</div>
+    </div>
 
-# App Navigation
-tab1, tab2, tab3, tab4 = st.tabs([
-    "⏱️ Mode 1: Single AU Micro-Flash Speed Drill",
-    "🎭 Mode 2: Multi-AU Blend Scenario Drills",
-    "🎴 Mode 3: Spaced Repetition Flashcard Deck",
-    "📊 Mode 4: Analytics & SuperMemo Memory Stability"
-])
+    <!-- Panel 2: L2-MBC Piecewise Calculator -->
+    <div class="card">
+      <h2 style="color: var(--sky)">[L2-MBC / T3-MEAS] Ratio-Scale MBC &amp; pPHQ-9</h2>
+      <p>Translates 14-day discrete symptom counts &amp; continuous VAS into Pseudo-PHQ-9 for MDHHS DEP-REM-6.</p>
+      <label><span>14-Day Discrete Count:</span><strong id="daysVal">4 / 14 days</strong></label>
+      <input type="range" id="daysInput" min="0" max="14" value="4" oninput="updateMBC()" />
+      <label><span>Visual Analogue Scale (VAS):</span><strong id="vasVal">35%</strong></label>
+      <input type="range" id="vasInput" min="0" max="100" value="35" oninput="updateMBC()" />
+      <div id="mbcOutput" class="result-box">Calculating...</div>
+    </div>
 
-# -----------------------------------------------------------------------------
-# TAB 1: Single AU Micro-Flash Speed Drill
-# -----------------------------------------------------------------------------
-with tab1:
-    st.subheader("⏱️ 40–200ms Single Action Unit Micro-Flash Drill")
-    st.markdown("""
-    Train your extrapyramidal visual recognition speed! Select a flash duration (from **40ms** micro-flashes up to **1000ms**).
-    Click **Trigger Flash**, observe the momentary stimulus, and identify the hidden Action Unit or muscle from memory.
-    """)
+    <!-- Panel 3: L4-PPS Financial Pro Forma -->
+    <div class="card">
+      <h2 style="color: var(--purple)">[L4-PPS / T2-PROD] CCBHC Pro Forma ($180/visit)</h2>
+      <p>LP Loaded Cost: $140k ($100k base + $25k benefits + $15k overhead) • Break-Even: 3.2 visits/day.</p>
+      <label><span>Completed Daily Encounters:</span><strong id="visitsVal">3.4 visits/day</strong></label>
+      <input type="range" id="visitsInput" min="1.0" max="6.0" step="0.1" value="3.4" oninput="updatePPS()" />
+      <div id="ppsOutput" class="result-box">Calculating...</div>
+    </div>
 
-    col_cfg1, col_cfg2 = st.columns([1, 2])
-    with col_cfg1:
-        flash_duration = st.selectbox(
-            "Select Flash Exposure Duration:",
-            [40, 100, 200, 500, 1000],
-            format_func=lambda x: f"{x} ms ({'Micro-Expression 1/25s' if x==40 else 'Micro-Flash 1/10s' if x==100 else 'Standard Micro 1/5s' if x==200 else 'Macro Exposure'})"
-        )
-        
-        au_keys = list(GIF_MAP.keys())
-        if "drill_target" not in st.session_state:
-            st.session_state["drill_target"] = random.choice(au_keys)
-            st.session_state["flashed"] = False
-            st.session_state["drill_score"] = 0
-            st.session_state["drill_attempts"] = 0
+    <!-- Panel 4: Knowledge Matrix Table Explorer -->
+    <div class="card">
+      <h2 style="color: var(--emerald)">[Levels 0–5] Matrix Entity &amp; Graph Inspector</h2>
+      <p>Inspect any canonical primary key (including L1-TEAR, L2-DEI, L3-TEAR, L4-CABI, T6-DYAD) and its 1-hop graph edges.</p>
+      <select id="entitySelect" onchange="inspectEntity()">
+        <option value="L2-DEI">L2-DEI — Third Ear v2.0 Dyadic Enactment Index (DEI)</option>
+        <option value="L1-TEAR">L1-TEAR — Psychoanalytic Third Ear v2.0 &amp; Intersubjective Field</option>
+        <option value="L3-TEAR">L3-TEAR — Third Ear v2.0 Haptic Preemption &amp; Safran Metacommunication</option>
+        <option value="L4-CABI">L4-CABI — Third Ear v2.0 Edge NPU &amp; Knox 3-Pass DoD Wipe</option>
+        <option value="T6-DYAD">T6-DYAD — Solipsistic Reverie vs Biometric Dyadic Index (DEI)</option>
+        <option value="L1-RFT">L1-RFT — Relational Frame Theory (RFT) &amp; CBS</option>
+        <option value="L1-FAP">L1-FAP — Functional Analytic Psychotherapy</option>
+        <option value="L1-SOM">L1-SOM — Polyvagal &amp; Somatic Autonomic Theory</option>
+        <option value="L1-PSY">L1-PSY — Psychodynamic &amp; Ego Psychology</option>
+        <option value="L2-FBA">L2-FBA — Expanded Functional Behavioral Assessment</option>
+        <option value="L2-MBC">L2-MBC — Ratio-Scale Measurement-Based Care</option>
+        <option value="L3-ACT">L3-ACT — ACT 'Dropping Anchor' &amp; Somatic Defusion</option>
+        <option value="L4-PPS">L4-PPS — CCBHC Prospective Payment System ($180)</option>
+        <option value="T2-PROD">T2-PROD — Throughput Volume vs Relational Attunement</option>
+      </select>
+      <div id="entityOutput" class="result-box">Loading...</div>
+    </div>
+  </div>
 
-        if st.button("🔄 Next Random Single AU Stimulus"):
-            st.session_state["drill_target"] = random.choice(au_keys)
-            st.session_state["flashed"] = False
-            st.rerun()
+  <!-- Bottom Panel: Hybrid RAG Copilot -->
+  <div class="card full-width">
+    <h2 style="color: var(--amber)">Deterministic Local LLM Hybrid RAG Copilot (SQLite Graph + JSONL Chunks)</h2>
+    <p>Retrieves grounded matrix chunks + 1-hop relational graph edges and builds the zero-hallucination system prompt for Ollama / vLLM.</p>
+    <div style="display: flex; gap: 10px;">
+      <input type="text" id="ragQuery" value="Explain the Third Ear v2.0 Dyadic Enactment Index (L2-DEI), 3-tick haptic preemption (L3-TEAR), and Safran metacommunication." />
+      <button onclick="runRAG()">Retrieve &amp; Synthesize</button>
+    </div>
+    <div id="ragOutput" class="result-box">Ready.</div>
+  </div>
 
-    with col_cfg2:
-        current_target = st.session_state["drill_target"]
-        gif_url = GIF_MAP[current_target]
+  <script>
+    async function updateDEI() {
+      const sf0 = Number(document.getElementById('sf0Input').value);
+      const rp = Number(document.getElementById('rpInput').value);
+      const hrv = Number(document.getElementById('hrvInput').value);
+      const def = Number(document.getElementById('defInput').value);
+      document.getElementById('sf0Val').textContent = sf0.toFixed(2);
+      document.getElementById('rpVal').textContent = rp.toFixed(2);
+      document.getElementById('hrvVal').textContent = hrv.toFixed(2);
+      document.getElementById('defVal').textContent = def.toFixed(2);
+      const res = await fetch(`/api/dei?sf0=${sf0}&rp=${rp}&hrv=${hrv}&def=${def}`).then(r => r.json());
+      document.getElementById('deiOutput').textContent =
+        `Effective DEI   : ${res.effective_dei.toFixed(3)} (Continuous: ${res.dei_continuous.toFixed(3)} | 750ms NPU: ${res.dei_750ms_npu.toFixed(3)})\\n` +
+        `O-RFT DEI_100   : ${res.dei_orft_100.toFixed(1)} / 100.0\\n` +
+        `Enactment State : ${res.enactment_state} (MAS: ${res.mas_discrepancy_flag})\\n` +
+        `Earbud Haptic   : ${res.haptic_earbud_dispatch}\\n` +
+        `Control Tier    : ${res.subsumption_tier}\\n` +
+        `Countertransf.  : ${res.racker_countertransference_type}\\n` +
+        `Safran Script   : ${res.safran_metacommunication_script}`;
+    }
 
-        st.markdown(f"**Current Target:** Visual Stimulus (Masked)")
+    async function updateMBC() {
+      const days = Number(document.getElementById('daysInput').value);
+      const vas = Number(document.getElementById('vasInput').value);
+      document.getElementById('daysVal').textContent = days + ' / 14 days';
+      document.getElementById('vasVal').textContent = vas + '%';
+      const res = await fetch(`/api/mbc?days=${days}&vas=${vas}`).then(r => r.json());
+      document.getElementById('mbcOutput').textContent =
+        `Pseudo-PHQ-9 Score : ${res.pseudo_phq9_score} / 27 (${res.severity_band})\\n` +
+        `Ordinal Equivalent : ${res.item_ordinal_equivalent} (0-3 scale)\\n` +
+        `MDHHS DEP-REM-6    : ${res.mdhhs_dep_rem_6_remission ? 'REMISSION ACHIEVED (<5)' : 'ACTIVE SYMPTOMS (>=5)'}`;
+    }
 
-        flash_placeholder = st.empty()
-        
-        if not st.session_state["flashed"]:
-            flash_placeholder.info("🔒 STIMULUS MASKED. Click button below to trigger micro-flash exposure.")
+    async function updatePPS() {
+      const visits = Number(document.getElementById('visitsInput').value);
+      document.getElementById('visitsVal').textContent = visits.toFixed(1) + ' visits/day';
+      const res = await fetch(`/api/pps?visits=${visits}`).then(r => r.json());
+      document.getElementById('ppsOutput').textContent =
+        `Status         : ${res.operational_status}\\n` +
+        `Daily Revenue  : $${res.daily_revenue_usd.toFixed(2)} (@ $180/visit)\\n` +
+        `Annual Revenue : $${res.annual_projected_revenue_usd.toLocaleString()} vs $140,000 Loaded Cost\\n` +
+        `Annual Margin  : $${res.annual_net_margin_usd.toLocaleString()}\\n` +
+        `Guidance       : ${res.t2_prod_recommendation}`;
+    }
+
+    async function inspectEntity() {
+      const id = document.getElementById('entitySelect').value;
+      const res = await fetch(`/api/entity?id=${encodeURIComponent(id)}`).then(r => r.json());
+      const edges = (res.relationships || []).map(e => `  ${e.source_id} --[${e.relationship_type}]--> ${e.target_id}`).join('\\n');
+      document.getElementById('entityOutput').textContent =
+        `Table: ${res.table}\\n` +
+        `Summary: ${res.record.dense_summary || res.record.dialectical_synthesis}\\n` +
+        `Connected Graph Edges (${(res.relationships || []).length}):\\n${edges}`;
+    }
+
+    async function runRAG() {
+      const q = document.getElementById('ragQuery').value;
+      const res = await fetch(`/api/rag?q=${encodeURIComponent(q)}`).then(r => r.json());
+      document.getElementById('ragOutput').textContent =
+        res.deterministic_synthesis + '\\n\\n--- GENERATED LOCAL LLM SYSTEM PROMPT ---\\n' + res.system_prompt;
+    }
+
+    updateDEI();
+    updateMBC();
+    updatePPS();
+    inspectEntity();
+    runRAG();
+  </script>
+</body>
+</html>
+"""
+
+
+class WorkbenchRequestHandler(BaseHTTPRequestHandler):
+    def _send_json(self, payload: object, status: int = 200) -> None:
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self) -> None:  # noqa: N802
+        parsed = urlparse(self.path)
+        qs = parse_qs(parsed.query)
+
+        if parsed.path == "/":
+            body = HTML_UI.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        elif parsed.path == "/healthz":
+            self._send_json({"status": "healthy", "mode": "turnkey-stdlib-server-v2"})
+        elif parsed.path == "/api/dei":
+            sf0 = float(qs.get("sf0", ["0.68"])[0])
+            rp = float(qs.get("rp", ["0.52"])[0])
+            hrv = float(qs.get("hrv", ["0.45"])[0])
+            def_load = float(qs.get("def", ["0.55"])[0])
+            self._send_json(asdict(compute_dyadic_enactment_index(sf0, rp, hrv, def_load)))
+        elif parsed.path == "/api/mbc":
+            days = int(qs.get("days", ["4"])[0])
+            vas = float(qs.get("vas", ["35.0"])[0])
+            self._send_json(asdict(compute_piecewise_pseudo_phq9(days, vas)))
+        elif parsed.path == "/api/pps":
+            visits = float(qs.get("visits", ["3.4"])[0])
+            self._send_json(asdict(calculate_ccbhc_pps_pro_forma(visits)))
+        elif parsed.path == "/api/entity":
+            eid = qs.get("id", ["L2-DEI"])[0]
+            self._send_json(matrix_service.get_entity_by_id(eid) or {"error": "Not found"})
+        elif parsed.path == "/api/rag":
+            q = qs.get("q", ["dyadic enactment index"])[0]
+            self._send_json(rag_service.retrieve_hybrid_context(q, top_k=5))
         else:
-            flash_placeholder.success("⚡ STIMULUS FLASH COMPLETED & RE-MASKED. Select your diagnosis below.")
+            self._send_json({"error": "Not found"}, status=404)
 
-        if st.button("⚡ TRIGGER SINGLE AU MICRO-FLASH"):
-            flash_placeholder.image(gif_url, caption=f"FLASH EXPOSURE ({flash_duration}ms)", width=350)
-            time.sleep(flash_duration / 1000.0)
-            flash_placeholder.warning("🔒 STIMULUS RE-MASKED — Time's Up!")
-            st.session_state["flashed"] = True
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+        return
 
-    st.markdown("---")
-    st.subheader("Diagnose the Flashed Action Unit:")
-    
-    choice_cols = st.columns(4)
-    user_choice = None
-    for idx, au in enumerate(au_keys):
-        with choice_cols[idx % 4]:
-            if st.button(f"{au}", key=f"btn_au_{au}"):
-                user_choice = au
 
-    if user_choice:
-        st.session_state["drill_attempts"] += 1
-        if user_choice == current_target:
-            st.session_state["drill_score"] += 1
-            st.balloons()
-            st.success(f"🎉 CORRECT! Identified **{current_target}** at {flash_duration}ms exposure speed!")
-        else:
-            st.error(f"❌ INCORRECT. Flashed stimulus was **{current_target}** (You selected {user_choice}).")
+def export_standalone_html_workbench() -> Path:
+    """
+    Generates a 100% self-contained, offline interactive HTML application
+    (data/interactive_ccbhc_workbench.html) with the full 6-table Matrix + 76 Graph Edges
+    + Third Ear v2.0 DEI + L2-MBC Piecewise pPHQ-9 + L4-PPS Pro Forma + Hybrid RAG Copilot.
+    """
+    etl.run_etl_pipeline()
+    kb_json = (ROOT_DIR / "data" / "matrix_llm_knowledge.json").read_text(encoding="utf-8")
+    chunks_lines = (ROOT_DIR / "data" / "matrix_llm_rag_chunks.jsonl").read_text(encoding="utf-8").splitlines()
+    chunks_json = json.dumps([json.loads(line) for line in chunks_lines if line.strip()], ensure_ascii=False)
 
-        st.info(f"**Single AU Drill Score:** {st.session_state['drill_score']} / {st.session_state['drill_attempts']} Correct ({ (st.session_state['drill_score']/st.session_state['drill_attempts'])*100:.1f}%)")
+    standalone_html = HTML_UI.replace(
+        "async function updateDEI() {",
+        f"const EMBEDDED_KB = {kb_json};\n    const EMBEDDED_CHUNKS = {chunks_json};\n\n    async function updateDEI() {{",
+    )
 
-# -----------------------------------------------------------------------------
-# TAB 2: Multi-AU Blend Scenario Drills
-# -----------------------------------------------------------------------------
-with tab2:
-    st.subheader("🎭 Multi-AU Blend Micro-Flash Scenario Drills")
-    st.markdown("""
-    In real-world interrogations and high-stakes social interactions, emotional leakage rarely occurs as isolated Action Units.
-    **Multi-AU Blends** combine upper and lower facial movements across opposing emotional vectors (e.g., Fear-Surprise or Suppressed Anger under a Social Smile).
-    """)
+    standalone_html = standalone_html.replace(
+        "const res = await fetch(`/api/dei?sf0=${sf0}&rp=${rp}&hrv=${hrv}&def=${def}`).then(r => r.json());",
+        """const dei_cont = 0.40 * sf0 + 0.30 * hrv + 0.15 * rp + 0.15 * def;
+      const dei_750 = 0.40 * sf0 + 0.30 * rp + 0.30 * hrv;
+      const dei_100 = 100.0 * Math.tanh(0.35 * sf0 + 0.40 * sf0 + 0.25 * rp);
+      const eff = Math.max(dei_cont, dei_750);
+      let state = 'DYAD_ATTUNED', mas = 'BALANCED_AFFECTIVITY', haptic = 'HAPTIC_1TICK_ATTUNEMENT';
+      let tier = 'L1_PRIMARY_TELEMETRY (NODE-PROS-750)', racker = 'Concordant Empathy (Intact Analytic Third)';
+      let script = 'Alliance baseline intact (1-Tick Pulse). Continue tracking implicit affective micro-emergence.';
+      if (eff >= 0.75) {
+        state = 'DYAD_MASKED_DISSIMULATION'; mas = 'OGM_COLLAPSE'; haptic = 'HAPTIC_3TICK_EMERGENCY';
+        tier = 'L3_AUTONOMOUS_MASTER_CONTROLLER (5G_URLLC_5QI_82)'; racker = 'Psychic Equivalence Crisis / Masked Dissimulation';
+        script = '"I can hear how overwhelming and heavy this feels right now. Let\\'s slow everything down together—press your heels into the floor with me."';
+      } else if (eff >= 0.50) {
+        state = 'DYAD_SADO_MASOCHISTIC_LOCK'; mas = 'HIGH_ID_LOW_PROC'; haptic = 'HAPTIC_3TICK_PREEMPTION';
+        tier = 'L2_INTERSUBJECTIVE_META_NODE (SUPER-NODE-2-MASTER)'; racker = 'Complementary Countertransference Lock (Doer / Done-To)';
+        script = '"I notice we\\'ve gotten into a struggle where you feel attacked and I feel defensive. Let\\'s pause and look together at what is happening between us right now."';
+      } else if (eff >= 0.25) {
+        state = 'DYAD_PRETEND_MODE'; mas = 'HIGH_ID_LOW_PROC'; haptic = 'HAPTIC_2PULSE_HARMONIC';
+        tier = 'L2_INTERSUBJECTIVE_META_NODE (META-NODE-01)'; racker = 'Intellectualized / Pseudo-Mentalizing Drift (Pretend Mode)';
+        script = '"We\\'re talking very analytically right now, but what do you notice happening in your body—in your chest or shoulders—as we say these words?"';
+      }
+      const res = {
+        effective_dei: eff, dei_continuous: dei_cont, dei_750ms_npu: dei_750, dei_orft_100: dei_100,
+        enactment_state: state, mas_discrepancy_flag: mas, haptic_earbud_dispatch: haptic,
+        subsumption_tier: tier, racker_countertransference_type: racker, safran_metacommunication_script: script
+      };""",
+    ).replace(
+        "const res = await fetch(`/api/mbc?days=${days}&vas=${vas}`).then(r => r.json());",
+        """const ordinal_eq = days <= 1 ? 0 : (days <= 6 ? 1 : (days <= 11 ? 2 : 3));
+      const base_score = days <= 1 ? (days * 2.0) : (days <= 6 ? 3.0 + ((days - 2) / 4.0) * 6.0 : (days <= 11 ? 10.0 + ((days - 7) / 4.0) * 8.0 : 19.0 + ((days - 12) / 2.0) * 8.0));
+      const p_phq9 = (days === 0 && vas === 0) ? 0 : Math.max(0, Math.min(27, Math.round(0.70 * base_score + 0.30 * (vas / 100.0) * 27.0)));
+      const band = p_phq9 < 5 ? 'Minimal / Remission' : (p_phq9 < 10 ? 'Mild' : (p_phq9 < 15 ? 'Moderate' : (p_phq9 < 20 ? 'Moderately Severe' : 'Severe')));
+      const res = { pseudo_phq9_score: p_phq9, severity_band: band, item_ordinal_equivalent: ordinal_eq, mdhhs_dep_rem_6_remission: p_phq9 < 5 };""",
+    ).replace(
+        "const res = await fetch(`/api/pps?visits=${visits}`).then(r => r.json());",
+        """const daily_rev = visits * 180.0;
+      const annual_rev = Math.round(daily_rev * 243);
+      const margin = annual_rev - 140000;
+      const solvent = visits >= 3.2;
+      const res = {
+        operational_status: solvent ? 'SOLVENT (Meets or Exceeds 3.2 Visits/Day Break-Even)' : 'DEFICIT RISK (Below 3.2 Visits/Day Break-Even Threshold)',
+        daily_revenue_usd: daily_rev,
+        annual_projected_revenue_usd: annual_rev,
+        annual_net_margin_usd: margin,
+        t2_prod_recommendation: solvent
+          ? '[T2-PROD Synthesis] Clinic is financially solvent under $180 PPS rate. Protect non-billable 5-minute somatic co-regulation huddles (L3-ACT/L3-FAP).'
+          : '[T2-PROD Synthesis] Below 3.2 visits/day break-even. Embed 15-minute Integrated PCBH warm-handoff consultations (L3-PCBH, CPT 96150-96154).'
+      };""",
+    ).replace(
+        "const res = await fetch(`/api/entity?id=${encodeURIComponent(id)}`).then(r => r.json());",
+        """const allTables = [
+        ['level1_meta_theories', EMBEDDED_KB.Level1_MetaTheories],
+        ['level2_assessment', EMBEDDED_KB.Level2_Assessment],
+        ['level3_interventions', EMBEDDED_KB.Level3_Interventions],
+        ['level4_systems_policy', EMBEDDED_KB.Level4_SystemsPolicy],
+        ['level5_discrepancy_matrix', EMBEDDED_KB.Level5_DiscrepancyMatrix]
+      ];
+      let foundTable = '', foundRec = {};
+      for (const [tName, rows] of allTables) {
+        const hit = rows.find(r => r.id === id);
+        if (hit) { foundTable = tName; foundRec = hit; break; }
+      }
+      const rels = EMBEDDED_KB.EntityRelationships.filter(e => e.source_id === id || e.target_id === id);
+      const res = { table: foundTable, record: foundRec, relationships: rels };""",
+    ).replace(
+        "const res = await fetch(`/api/rag?q=${encodeURIComponent(q)}`).then(r => r.json());",
+        """const terms = q.toLowerCase().split(/[^a-z0-9_-]+/).filter(t => t.length >= 3);
+      const scored = EMBEDDED_CHUNKS.map(c => {
+        let s = 0;
+        const txt = c.text.toLowerCase();
+        if (q.toLowerCase().includes(c.primary_key.toLowerCase())) s += 10;
+        for (const t of terms) { if (txt.includes(t)) s += 2; if (c.title.toLowerCase().includes(t)) s += 3; }
+        return { score: s, chunk: c };
+      }).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 5);
+      const topChunks = scored.map(x => x.chunk);
+      const cited = topChunks.map(c => '[' + c.primary_key + ']').join(', ');
+      const synth = `Grounded Matrix Synthesis for query: '${q}'\\nPrimary Cited Entities: ${cited}\\n` +
+        topChunks.slice(0, 3).map(c => `- [${c.primary_key}] (${c.level} - ${c.title}): Related to ${c.related_ids.join(', ')}`).join('\\n');
+      const prompt = 'You are a Clinical Psychology & Health Systems AI Assistant grounded in Scott Niewinski\\'s Foundational Knowledge Matrix.\\n\\n--- GROUNDED MATRIX CHUNKS ---\\n' +
+        topChunks.map(c => c.text).join('\\n\\n');
+      const res = { deterministic_synthesis: synth, system_prompt: prompt };""",
+    )
 
-    b_col1, b_col2 = st.columns([1, 1])
-    
-    with b_col1:
-        blend_duration = st.selectbox(
-            "Select Blend Exposure Duration (ms):",
-            [40, 100, 200, 500, 1000],
-            key="blend_duration_select",
-            format_func=lambda x: f"{x} ms ({'Micro-Flash 1/25s' if x==40 else 'Standard Micro 1/5s' if x==200 else 'Macro Exposure'})"
-        )
-        
-        blend_keys = list(MULTI_AU_BLEND_SCENARIOS.keys())
-        if "blend_target_key" not in st.session_state:
-            st.session_state["blend_target_key"] = random.choice(blend_keys)
-            st.session_state["blend_flashed"] = False
-            st.session_state["blend_score"] = 0
-            st.session_state["blend_attempts"] = 0
+    out_path = ROOT_DIR / "data" / "interactive_ccbhc_workbench.html"
+    out_path.write_text(standalone_html, encoding="utf-8")
+    return out_path
 
-        if st.button("🔄 Next Random Multi-AU Blend"):
-            st.session_state["blend_target_key"] = random.choice(blend_keys)
-            st.session_state["blend_flashed"] = False
-            st.rerun()
 
-        target_scenario = MULTI_AU_BLEND_SCENARIOS[st.session_state["blend_target_key"]]
-        st.markdown(f"### Target Scenario: `{target_scenario['title']}`")
+def main() -> None:
+    out_html = export_standalone_html_workbench()
+    if "--export-only" in sys.argv:
+        print(f"Exported standalone HTML workbench to: {out_html}")
+        return
+    host, port = "127.0.0.1", 8080
+    server = HTTPServer((host, port), WorkbenchRequestHandler)
+    print(f"=== CCBHC MATRIX WORKBENCH v2.0 RUNNING AT http://{host}:{port} ===")
+    print(f"=== STANDALONE OFFLINE HTML EXPORTED TO: {out_html} ===")
+    print("Press Ctrl+C to stop.")
+    server.serve_forever()
 
-        blend_flash_box = st.empty()
-        
-        if not st.session_state["blend_flashed"]:
-            blend_flash_box.info("🔒 MULTI-AU BLEND STIMULUS MASKED. Click button below to trigger exposure.")
-        else:
-            blend_flash_box.success("⚡ MULTI-AU BLEND FLASH COMPLETED. Select your clinical diagnosis below.")
 
-        if st.button("⚡ TRIGGER MULTI-AU BLEND MICRO-FLASH"):
-            blend_flash_box.markdown(f"**Action Unit Cluster:** `{target_scenario['au_components']}`")
-            g_col_a, g_col_b = blend_flash_box.columns(2)
-            g_col_a.image(target_scenario["primary_gif"], caption="Primary AU Movement", width=220)
-            g_col_b.image(target_scenario["secondary_gif"], caption="Secondary Co-occurring AU", width=220)
-            
-            time.sleep(blend_duration / 1000.0)
-            blend_flash_box.warning("🔒 MULTI-AU STIMULUS RE-MASKED — Time's Up!")
-            st.session_state["blend_flashed"] = True
-
-    with b_col2:
-        st.markdown("### Diagnose the Multi-AU Blend Scenario:")
-        
-        selected_blend_diagnosis = st.radio(
-            "Select the correct emotional blend and Action Unit composition:",
-            target_scenario["options"],
-            key="radio_blend_diagnosis"
-        )
-
-        if st.button("Submit Multi-AU Diagnosis"):
-            st.session_state["blend_attempts"] += 1
-            if selected_blend_diagnosis == st.session_state["blend_target_key"]:
-                st.session_state["blend_score"] += 1
-                st.balloons()
-                st.success(f"🎉 CORRECT DIAGNOSIS! You identified **{st.session_state['blend_target_key']}**!")
-            else:
-                st.error(f"❌ INCORRECT. Flashed scenario was **{st.session_state['blend_target_key']}**.")
-
-            st.markdown("#### 🧠 Clinical Differentiation & Rule-Out Grounding:")
-            st.info(f"**Morphology:** {target_scenario['morphology_description']}\n\n**Rule-Out Logic:** {target_scenario['differentiation_rule']}")
-            st.metric("Multi-AU Drill Accuracy", f"{(st.session_state['blend_score'] / st.session_state['blend_attempts']) * 100:.1f}%", f"{st.session_state['blend_score']}/{st.session_state['blend_attempts']} Correct")
-
-# -----------------------------------------------------------------------------
-# TAB 3: Spaced Repetition Flashcards
-# -----------------------------------------------------------------------------
-with tab3:
-    st.subheader("🎴 FACS Spaced Repetition Review Deck")
-    
-    if "card_idx" not in st.session_state:
-        st.session_state["card_idx"] = 0
-        st.session_state["show_answer"] = False
-
-    total_c = len(cards_data)
-    curr_card = cards_data[st.session_state["card_idx"] % total_c]
-
-    st.progress((st.session_state["card_idx"] + 1) / total_c)
-    st.caption(f"Card {st.session_state['card_idx'] + 1} of {total_c}")
-
-    f_col, b_col = st.columns(2)
-    with f_col:
-        st.markdown("### ❓ Front (Question / Prompt)")
-        st.info(curr_card["Front"])
-
-    with b_col:
-        st.markdown("### 💡 Back (Answer & Grounding)")
-        if st.session_state["show_answer"]:
-            st.success(curr_card["Back"].replace("<br>", "\n\n"))
-        else:
-            st.warning("🔒 Click 'Reveal Answer' below to verify your recall.")
-
-    st.markdown("---")
-    c1, c2, c3, c4, c5 = st.columns(5)
-
-    if not st.session_state["show_answer"]:
-        if c1.button("👁️ Reveal Answer", use_container_width=True):
-            st.session_state["show_answer"] = True
-            st.rerun()
-    else:
-        if c2.button("🔴 Again (S x0.8)", use_container_width=True):
-            st.session_state["card_idx"] += 1
-            st.session_state["show_answer"] = False
-            st.rerun()
-        if c3.button("🟠 Hard (S x1.2)", use_container_width=True):
-            st.session_state["card_idx"] += 1
-            st.session_state["show_answer"] = False
-            st.rerun()
-        if c4.button("🟢 Good (S x1.5)", use_container_width=True):
-            st.session_state["card_idx"] += 1
-            st.session_state["show_answer"] = False
-            st.rerun()
-        if c5.button("🔵 Easy (S x2.0)", use_container_width=True):
-            st.session_state["card_idx"] += 1
-            st.session_state["show_answer"] = False
-            st.rerun()
-
-# -----------------------------------------------------------------------------
-# TAB 4: Analytics & SuperMemo Memory Stability
-# -----------------------------------------------------------------------------
-with tab4:
-    st.subheader("📊 Memory Stability (S) & Retrievability (R) Analytics")
-    
-    m_col1, m_col2, m_col3 = st.columns(3)
-    m_col1.metric("Total Cards Loaded", len(cards_data))
-    
-    single_acc = (st.session_state.get('drill_score', 0) / max(1, st.session_state.get('drill_attempts', 1))) * 100
-    m_col2.metric("Single AU Drill Accuracy", f"{single_acc:.1f}%")
-
-    blend_acc = (st.session_state.get('blend_score', 0) / max(1, st.session_state.get('blend_attempts', 1))) * 100
-    m_col3.metric("Multi-AU Blend Drill Accuracy", f"{blend_acc:.1f}%")
-
-    st.markdown("### SuperMemo Retrievability Decay Formula:")
-    st.latex(r"R(t) = e^{-\frac{\ln(2) \cdot t}{S}}")
-    st.caption("Where $t$ is days elapsed since last practice, and $S$ is memory stability in days.")
-
-    df_cards = pd.DataFrame(cards_data)
-    st.dataframe(df_cards, use_container_width=True)
+if __name__ == "__main__":
+    main()
